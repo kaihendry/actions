@@ -1,0 +1,8 @@
+name: 'goredo'
+description: djb's redo in Go, a Makefile replacement that sucks less
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+branding:
+  icon: 'chevron-up'
+  color: 'blue'
