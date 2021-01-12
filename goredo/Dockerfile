@@ -15,3 +15,4 @@ RUN ./goredo -symlinks
 
 FROM scratch
 COPY --from=0 /go/goredo /go/redo* /bin/
+ENTRYPOINT ["/bin/redo"]
