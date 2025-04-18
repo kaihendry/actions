@@ -62,21 +62,16 @@ runs:
         ./goredo -symlinks "$INSTALL_DIR"
         echo "Adding $INSTALL_DIR to PATH..."
         echo "$INSTALL_DIR" >> $GITHUB_PATH
+        echo "Contents of INSTALL_DIR:"
+        ls -l "$INSTALL_DIR"
+        echo "Current PATH:"
+        echo $PATH
       working-directory: ${{ runner.temp }}/goredo-src/src
 
-    # Verify installation within the action itself
-    - name: Verify goredo installation
+    - name: Verify PATH and redo command
       shell: bash
       run: |
-        echo "Verifying goredo installation..."
-        if ! which redo > /dev/null; then
-          echo "::error::'redo' command not found in PATH after installation."
-          exit 1
-        fi
-        echo "Found redo at: $(which redo)"
-        if redo --version || goredo --version; then
-           echo "Goredo version check successful."
-        else
-           echo "::warning::Could not determine goredo version, but command is present."
-           # Decide if this should be a failure - exit 1
-        fi
+        echo "Checking PATH after installation..."
+        echo $PATH
+        echo "Checking for redo command..."
+        which redo || { echo "::error::'redo' command not found in PATH."; exit 1; }
