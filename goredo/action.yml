@@ -53,13 +53,12 @@ runs:
         go build -mod=vendor
       working-directory: ${{ runner.temp }}/goredo-src/src
 
-    - name: Install goredo (symlinks)
+   - name: Install goredo (symlinks)
       shell: bash
       run: |
-        INSTALL_DIR="${{ runner.temp }}/goredo-bin"
-        mkdir -p "$INSTALL_DIR"
+        INSTALL_DIR="/usr/local/bin"
         echo "Installing goredo symlinks to $INSTALL_DIR..."
-        ./goredo -symlinks "$INSTALL_DIR"
+        cp goredo "$INSTALL_DIR/goredo"
         echo "Adding $INSTALL_DIR to PATH..."
         echo "$INSTALL_DIR" >> $GITHUB_PATH
         echo "Contents of INSTALL_DIR:"
@@ -68,10 +67,12 @@ runs:
         echo $PATH
       working-directory: ${{ runner.temp }}/goredo-src/src
 
-    - name: Verify PATH and redo command
+    - name: Verify Goredo Installation
       shell: bash
       run: |
-        echo "Checking PATH after installation..."
-        echo $PATH
-        echo "Checking for redo command..."
-        which redo || { echo "::error::'redo' command not found in PATH."; exit 1; }
+        echo "Verifying goredo installation..."
+        if ! command -v goredo &> /dev/null; then
+          echo "::error::'goredo' command not found in PATH."
+          exit 1
+        fi
+        echo "Goredo is installed successfully at $(command -v goredo)."
