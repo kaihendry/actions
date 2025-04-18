@@ -56,8 +56,12 @@ runs:
     - name: Install goredo (symlinks)
       shell: bash
       run: |
-        echo "Installing goredo using symlinks..."
-        sudo ./goredo -symlinks
+        INSTALL_DIR="${{ runner.temp }}/goredo-bin"
+        mkdir -p "$INSTALL_DIR"
+        echo "Installing goredo symlinks to $INSTALL_DIR..."
+        ./goredo -symlinks "$INSTALL_DIR"
+        echo "Adding $INSTALL_DIR to PATH..."
+        echo "$INSTALL_DIR" >> $GITHUB_PATH
       working-directory: ${{ runner.temp }}/goredo-src/src
 
     # Verify installation within the action itself
