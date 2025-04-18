@@ -59,31 +59,11 @@ runs:
         INSTALL_DIR="/usr/local/bin"
         BUILD_DIR="${{ runner.temp }}/goredo-src/src"
 
-        echo "Copying goredo from $BUILD_DIR to $INSTALL_DIR..."
         cp "$BUILD_DIR/goredo" "$INSTALL_DIR/"
 
-        echo "Adding $INSTALL_DIR to PATH..."
         echo "$INSTALL_DIR" >> $GITHUB_PATH
 
-        echo "Changing directory to $INSTALL_DIR"
         cd "$INSTALL_DIR"
 
-        echo "Running goredo -symlinks to create symlinks..."
         # Ensure goredo is executable and run -symlinks
-        chmod +x goredo
         goredo -symlinks
-
-        echo "Contents of INSTALL_DIR after symlinks:"
-        ls -l "$INSTALL_DIR"
-        echo "Current PATH:"
-        echo $PATH
-
-    - name: Verify Goredo Installation
-      shell: bash
-      run: |
-        echo "Verifying goredo installation..."
-        if ! command -v goredo &> /dev/null; then
-          echo "::error::'goredo' command not found in PATH."
-          exit 1
-        fi
-        echo "Goredo is installed successfully at $(command -v goredo)."
