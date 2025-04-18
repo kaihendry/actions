@@ -1,8 +1,78 @@
-name: 'goredo'
-description: djb's redo in Go, a Makefile replacement that sucks less
+# This file defines the reusable action: kaihendry/actions/goredo/action.yml
+name: "Install Goredo"
+description: "Downloads, builds, installs the goredo build tool using Go, and verifies it."
+
+# Define inputs for customization (optional, but good practice)
+inputs:
+  go-version:
+    description: "Version of Go to set up for building goredo"
+    required: false
+    default: "1.21" # Default Go version
+  goredo-version:
+    description: "Version of goredo to download and install"
+    required: false
+    default: "2.6.4" # Default goredo version
+
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
-branding:
-  icon: 'chevron-up'
-  color: 'blue'
+  # Use 'composite' to run steps directly on the runner host
+  using: "composite"
+  steps:
+    # Although the calling workflow might set up Go, it's robust
+    # for the action to ensure its required Go version is present.
+    - name: Set up Go ${{ inputs.go-version }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    # Composite actions should ensure their own dependencies are met.
+    - name: Install zstd dependency
+      shell: bash # Use bash explicitly for shell commands
+      run: |
+        echo "Installing zstd dependency..."
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends zstd
+
+    # Use inputs for version flexibility
+    - name: Download goredo v${{ inputs.goredo-version }} source
+      shell: bash
+      run: |
+        echo "Downloading goredo..."
+        curl -L -O "http://www.goredo.cypherpunks.su/download/goredo-${{ inputs.goredo-version }}.tar.zst"
+
+    - name: Extract goredo source
+      shell: bash
+      run: |
+        echo "Extracting goredo..."
+        mkdir -p ${{ runner.temp }}/goredo-src
+        tar --use-compress-program unzstd -xvf "goredo-${{ inputs.goredo-version }}.tar.zst" --strip-components=1 -C ${{ runner.temp }}/goredo-src
+
+    - name: Build goredo
+      shell: bash
+      run: |
+        echo "Building goredo..."
+        go build -mod=vendor
+      working-directory: ${{ runner.temp }}/goredo-src/src
+
+    - name: Install goredo (symlinks)
+      shell: bash
+      run: |
+        echo "Installing goredo using symlinks..."
+        sudo ./goredo -symlinks
+      working-directory: ${{ runner.temp }}/goredo-src/src
+
+    # Verify installation within the action itself
+    - name: Verify goredo installation
+      shell: bash
+      run: |
+        echo "Verifying goredo installation..."
+        if ! which redo > /dev/null; then
+          echo "::error::'redo' command not found in PATH after installation."
+          exit 1
+        fi
+        echo "Found redo at: $(which redo)"
+        if redo --version || goredo --version; then
+           echo "Goredo version check successful."
+        else
+           echo "::warning::Could not determine goredo version, but command is present."
+           # Decide if this should be a failure - exit 1
+        fi
