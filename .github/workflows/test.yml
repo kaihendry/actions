@@ -1,0 +1,56 @@
+# kaihendry/actions/.github/workflows/test-goredo-action.yml
+name: Test Goredo Composite Action
+
+on:
+  push:
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest # Use the runner environment your action targets
+    steps:
+      # 1. Checkout the action's repository code
+      - name: Checkout Action Repository
+        uses: actions/checkout@v4
+
+      # 2. (Optional) Simulate prerequisites
+      # Install tools that a *calling* workflow might have installed *before*
+      # your action runs. This tests context inheritance.
+      - name: Simulate Prerequisites (e.g., install GDAL)
+        run: |
+          echo "Simulating installation of other tools like GDAL..."
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gdal-bin
+          echo "Checking prerequisite tool:"
+          ogr2ogr --version
+
+      # 3. Run the local composite action
+      - name: Run the local Goredo Action
+        # Use 'uses: ./goredo' to reference the action in the current repository checkout
+        uses: ./goredo
+        # You can also test inputs here if needed:
+        # with:
+        #   go-version: '1.20'
+
+      # 4. Verify the results AFTER the action has run
+      - name: Verify Goredo Installation
+        run: |
+          echo "Verifying goredo installation after action..."
+          if ! which redo > /dev/null; then
+            echo "::error::'redo' command not found in PATH after action execution."
+            exit 1
+          fi
+          echo "Found redo at: $(which redo)"
+          # Try running a basic redo command
+          if redo --version || goredo --version; then
+             echo "Goredo version check successful."
+          else
+             echo "::warning::Could not determine goredo version via --version flag, but command is present."
+             # Decide if this should cause the test to fail (exit 1)
+          fi
+          echo "Goredo command seems available in PATH."
+
+      # 5. (Optional) More complex execution test
+      - name: Advanced Goredo Execution Test
+        run: |
+          redo
+          grep GDAL all
