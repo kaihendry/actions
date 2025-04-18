@@ -53,7 +53,7 @@ runs:
         go build -mod=vendor
       working-directory: ${{ runner.temp }}/goredo-src/src
 
-   - name: Install goredo (symlinks)
+    - name: Install goredo (symlinks)
       shell: bash
       run: |
         INSTALL_DIR="/usr/local/bin"
