@@ -81,7 +81,9 @@ runs:
       shell: bash
       run: terraform init
 
-    - run: |
+    - name: List Files
+      shell: bash
+      run: |
         ls -la
 
     - id: plan
