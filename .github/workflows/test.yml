@@ -10,7 +10,7 @@ jobs:
     steps:
       # 1. Checkout the action's repository code
       - name: Checkout Action Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 2. (Optional) Simulate prerequisites
       # Install tools that a *calling* workflow might have installed *before*
