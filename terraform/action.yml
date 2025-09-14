@@ -1,3 +1,4 @@
+---
 name: "Deploy Terraform Infrastructure"
 
 inputs:
@@ -8,6 +9,9 @@ inputs:
     description: "JSON object containing secret key-value pairs"
     required: false
     default: "{}"
+  tf-api-token:
+    description: "Terraform Cloud API token"
+    required: false
 
 runs:
   using: "composite"
@@ -21,7 +25,7 @@ runs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
-        cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+        cli_config_credentials_token: ${{ inputs.tf-api-token }}
 
     # print context and inputs for debugging of the action, especially details of the calling repo
     - name: Debug Info
