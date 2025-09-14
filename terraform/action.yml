@@ -105,4 +105,4 @@ runs:
       shell: bash
       run: |
         ls -la
-        terraform plan -no-color
+        terraform apply -auto-approve -no-color
