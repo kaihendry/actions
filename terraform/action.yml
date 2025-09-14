@@ -21,6 +21,12 @@ runs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
 
+    # print context and inputs for debugging of the action, especially details of the calling repo
+    - name: Debug Info
+      shell: bash
+      run: |
+        printenv
+
     - name: Copy config file and generate Terraform
       shell: bash
       run: |
@@ -75,10 +81,8 @@ runs:
       shell: bash
       run: terraform init
 
-    - name: Terraform Plan
-      shell: bash
-      run: terraform plan
+    - run: |
+        ls -la
 
-    - name: Terraform Apply
-      shell: bash
-      run: terraform apply -auto-approve
+    - id: plan
+      run: terraform plan -no-color
