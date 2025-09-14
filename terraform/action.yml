@@ -69,7 +69,7 @@ runs:
 
           name  = each.value.name
           type  = each.value.type
-          value = replace(each.value.value, "{{- var.([^}]+) -}}", lookup(local.variables, "$1", ""))
+          value = lookup(local.variables, basename(each.value.name), "")
 
           description = try(each.value.description, null)
 
