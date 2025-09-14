@@ -1,0 +1,87 @@
+name: "Deploy Terraform Infrastructure"
+
+inputs:
+  config-file:
+    description: "Path to the config.yaml file"
+    required: true
+  secrets:
+    description: "JSON object containing secret key-value pairs"
+    required: false
+    default: "{}"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v5
+      with:
+        role-to-assume: arn:aws:iam::407461997746:role/github-actions-Role-56IHHM969DKJ
+        aws-region: eu-west-2
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Copy config file and generate Terraform
+      shell: bash
+      run: |
+        cp "${{ inputs.config-file }}" config.yaml
+
+        # Parse secrets JSON and create terraform.tfvars
+        echo '${{ inputs.secrets }}' | jq -r 'to_entries[] | "\(.key) = \"\(.value)\""' > terraform.tfvars || echo "" > terraform.tfvars
+
+        cat > main.tf << 'EOF'
+        terraform {
+          required_providers {
+            aws = {
+              source  = "hashicorp/aws"
+              version = "~> 5.0"
+            }
+          }
+        }
+
+        provider "aws" {
+          region = "eu-west-2"
+        }
+
+        locals {
+          config = yamldecode(file("${path.module}/config.yaml"))
+          variables = var.secrets
+        }
+
+        variable "secrets" {
+          description = "Secret key-value pairs"
+          type        = map(string)
+          default     = {}
+          sensitive   = true
+        }
+
+        resource "aws_ssm_parameter" "parameters" {
+          for_each = {
+            for idx, param in local.config.terraform.ssm_parameters :
+            idx => param
+          }
+
+          name  = each.value.name
+          type  = each.value.type
+          value = templatestring(each.value.value, {
+            for key, val in local.variables :
+            "var.${key}" => val
+          })
+          
+          description = try(each.value.description, null)
+          
+          tags = try(each.value.tags, {})
+        }
+        EOF
+
+    - name: Terraform Init
+      shell: bash
+      run: terraform init
+
+    - name: Terraform Plan
+      shell: bash
+      run: terraform plan
+
+    - name: Terraform Apply
+      shell: bash
+      run: terraform apply -auto-approve
