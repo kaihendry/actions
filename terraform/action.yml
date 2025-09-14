@@ -1,12 +1,5 @@
 name: "Deploy Terraform Infrastructure"
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-  secrets: read
-  actions: read
-
 inputs:
   config-file:
     description: "Path to the config.yaml file"
@@ -31,7 +24,7 @@ runs:
     - name: Copy config file and generate Terraform
       shell: bash
       run: |
-        cp "${{ inputs.config-file }}" config.yaml
+        cat config.yaml
 
         # Parse secrets JSON and create terraform.tfvars
         echo '${{ inputs.secrets }}' | jq -r 'to_entries[] | "\(.key) = \"\(.value)\""' > terraform.tfvars || echo "" > terraform.tfvars
