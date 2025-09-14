@@ -4,6 +4,8 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  secrets: read
+  actions: read
 
 inputs:
   config-file:
@@ -72,9 +74,9 @@ runs:
             for key, val in local.variables :
             "var.${key}" => val
           })
-          
+
           description = try(each.value.description, null)
-          
+
           tags = try(each.value.tags, {})
         }
         EOF
