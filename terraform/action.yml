@@ -20,6 +20,8 @@ runs:
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
+      with:
+        cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
     # print context and inputs for debugging of the action, especially details of the calling repo
     - name: Debug Info
