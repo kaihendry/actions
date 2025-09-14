@@ -1,5 +1,10 @@
 name: "Deploy Terraform Infrastructure"
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 inputs:
   config-file:
     description: "Path to the config.yaml file"
