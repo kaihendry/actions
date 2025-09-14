@@ -11,7 +11,15 @@ inputs:
     default: "{}"
   tf-api-token:
     description: "Terraform Cloud API token"
+    required: true
+  tf-cloud-workspace:
+    description: "Terraform Cloud workspace name"
     required: false
+    default: "default-workspace"
+  tf-cloud-organization:
+    description: "Terraform Cloud organization name"
+    required: false
+    default: "kaihendry"
 
 runs:
   using: "composite"
@@ -47,6 +55,12 @@ runs:
             aws = {
               source  = "hashicorp/aws"
               version = "~> 5.0"
+            }
+          }
+          cloud {
+            organization = "${{ inputs.tf-cloud-organization }}"
+            workspaces {
+              name = "${{ inputs.tf-cloud-workspace }}"
             }
           }
         }

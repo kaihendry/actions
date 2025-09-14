@@ -9,6 +9,8 @@ The purpose of this action is to deploy infrastructure defined as config.yaml, a
 | `config-file` | Path to the config.yaml file | Yes | - |
 | `secrets` | JSON object containing secret key-value pairs | No | `"{}"` |
 | `tf-api-token` | Terraform Cloud API token | No | - |
+| `tf-cloud-workspace` | Terraform Cloud workspace name | No | `"default-workspace"` |
+| `tf-cloud-organization` | Terraform Cloud organization name | No | `"kaihendry"` |
 
 ## Example config.yaml
 
@@ -71,6 +73,12 @@ jobs:
 
           # Terraform Cloud API token (optional, required for Terraform Cloud)
           tf-api-token: ${{ secrets.TF_API_TOKEN }}
+
+          # Terraform Cloud workspace (optional, customize per environment)
+          tf-cloud-workspace: "my-app-production"
+
+          # Terraform Cloud organization (optional, defaults to kaihendry)
+          tf-cloud-organization: "kaihendry"
 ```
 
 ## How it works
@@ -86,3 +94,23 @@ jobs:
 - AWS OIDC role configured for GitHub Actions
 - Repository secrets for any values referenced in config.yaml
 - Optional: Terraform Cloud API token for remote state management
+
+## Terraform Cloud Setup
+
+To use Terraform Cloud for remote state management:
+
+1. **Create a Terraform Cloud account** at https://app.terraform.io
+2. **Create an organization** (e.g., "kaihendry")
+3. **Create a workspace** for each environment/project
+4. **Generate an API token**:
+   - Go to User Settings > Tokens
+   - Create a new token
+   - Add it as `TF_API_TOKEN` secret in your GitHub repository
+5. **Configure workspace variables** in Terraform Cloud:
+   - Set any AWS credentials or other environment-specific variables
+   - Configure workspace to use "API-driven workflow"
+
+The action will automatically:
+- Store state in your specified Terraform Cloud workspace
+- Use the organization and workspace specified in inputs
+- Apply infrastructure changes through Terraform Cloud
