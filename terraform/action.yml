@@ -63,10 +63,7 @@ runs:
 
           name  = each.value.name
           type  = each.value.type
-          value = templatestring(each.value.value, {
-            for key, val in local.variables :
-            "var.${key}" => val
-          })
+          value = replace(each.value.value, "{{- var.([^}]+) -}}", lookup(local.variables, "$1", ""))
 
           description = try(each.value.description, null)
 
