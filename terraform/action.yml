@@ -5,10 +5,7 @@ inputs:
   config-file:
     description: "Path to the config.yaml file"
     required: true
-  secrets:
-    description: "JSON object containing secret key-value pairs"
-    required: false
-    default: "{}"
+    default: "config.yaml"
   tf-api-token:
     description: "Terraform Cloud API token"
     required: true
@@ -28,6 +25,7 @@ inputs:
 runs:
   using: "composite"
   steps:
+      # TODO: Role lookup based on environment
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v5
       with:
@@ -39,68 +37,20 @@ runs:
       with:
         cli_config_credentials_token: ${{ inputs.tf-api-token }}
 
-    # print context and inputs for debugging of the action, especially details of the calling repo
-    - name: Debug Info
+    - name: Generate Terraform configuration
       shell: bash
       run: |
-        printenv
-
-    - name: Copy config file and generate Terraform
-      shell: bash
-      run: |
-        echo "=== Config YAML ==="
-        cat config.yaml
-
-        echo "=== Secrets Input ==="
-        echo '${{ inputs.secrets }}'
-
-        echo "=== Generating main.tf.json ==="
-        # Parse the config and secrets, then generate JSON terraform config
+        echo "=== Generating main.tf.json from config.yaml ==="
         python3 << 'PYTHON_EOF'
         import yaml
         import json
-        import os
-        import re
 
         # Load config.yaml
         with open('config.yaml', 'r') as f:
             config = yaml.safe_load(f)
 
-        # Parse secrets JSON
-        secrets_json = '''${{ inputs.secrets }}'''
-        secrets = json.loads(secrets_json) if secrets_json.strip() else {}
-
-        print("Parsed secrets:", secrets)
-        print("Config SSM parameters:", config.get('terraform', {}).get('ssm_parameters', []))
-
-        # Start with the terraform section from config.yaml and inject secrets
+        # Get terraform config from YAML and add terraform cloud and provider configuration
         tf_config = config.get('terraform', {}).copy()
-
-        # Process SSM parameters and inject secret values
-        ssm_params = tf_config.get('ssm_parameters', [])
-        for i, param in enumerate(ssm_params):
-            param_name = param['name']
-            # Extract basename - keep original format to match secrets JSON
-            basename = os.path.basename(param_name)
-            secret_key = basename
-
-            print(f"Parameter {i}: name='{param_name}', basename='{basename}', secret_key='{secret_key}'")
-
-            # Get the secret value and add it to the param
-            secret_value = secrets.get(secret_key, f"MISSING_SECRET_{secret_key}")
-            param['value'] = secret_value
-
-        # Convert ssm_parameters list to terraform resource format
-        if 'ssm_parameters' in tf_config:
-            tf_config['resource'] = {
-                'aws_ssm_parameter': {
-                    f"param_{i}": param for i, param in enumerate(tf_config['ssm_parameters'])
-                }
-            }
-            # Remove the original ssm_parameters as it's now in resource format
-            del tf_config['ssm_parameters']
-
-        # Add the terraform cloud and provider configuration
         tf_config.update({
             "terraform": {
                 "required_providers": {
@@ -138,9 +88,6 @@ runs:
 
         print("Generated main.tf.json successfully")
         PYTHON_EOF
-
-        echo "=== Generated main.tf.json ==="
-        cat main.tf.json
 
     - name: Terraform Init
       shell: bash
