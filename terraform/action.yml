@@ -44,58 +44,87 @@ runs:
     - name: Copy config file and generate Terraform
       shell: bash
       run: |
+        echo "=== Config YAML ==="
         cat config.yaml
 
-        # Parse secrets JSON and create terraform.tfvars
-        echo '${{ inputs.secrets }}' | jq -r 'to_entries[] | "\(.key) = \"\(.value)\""' > terraform.tfvars || echo "" > terraform.tfvars
+        echo "=== Secrets Input ==="
+        echo '${{ inputs.secrets }}'
 
-        cat > main.tf << 'EOF'
-        terraform {
-          required_providers {
-            aws = {
-              source  = "hashicorp/aws"
-              version = "~> 5.0"
+        echo "=== Generating main.tf.json ==="
+        # Parse the config and secrets, then generate JSON terraform config
+        python3 << 'PYTHON_EOF'
+        import yaml
+        import json
+        import os
+        import re
+
+        # Load config.yaml
+        with open('config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+
+        # Parse secrets JSON
+        secrets_json = '''${{ inputs.secrets }}'''
+        secrets = json.loads(secrets_json) if secrets_json.strip() else {}
+
+        print("Parsed secrets:", secrets)
+        print("Config SSM parameters:", config.get('terraform', {}).get('ssm_parameters', []))
+
+        # Generate Terraform JSON config
+        tf_config = {
+            "terraform": {
+                "required_providers": {
+                    "aws": {
+                        "source": "hashicorp/aws",
+                        "version": "~> 5.0"
+                    }
+                },
+                "cloud": {
+                    "organization": "${{ inputs.tf-cloud-organization }}",
+                    "workspaces": {
+                        "name": "${{ github.event.repository.name }}-${{ inputs.environment }}"
+                    }
+                }
+            },
+            "provider": {
+                "aws": {
+                    "region": "eu-west-2"
+                }
+            },
+            "resource": {
+                "aws_ssm_parameter": {}
             }
-          }
-          cloud {
-            organization = "${{ inputs.tf-cloud-organization }}"
-            workspaces {
-              name = "${{ github.event.repository.name }}-${{ inputs.environment }}"
+        }
+
+        # Process SSM parameters
+        ssm_params = config.get('terraform', {}).get('ssm_parameters', [])
+        for i, param in enumerate(ssm_params):
+            param_name = param['name']
+            # Extract basename and convert to secret key format
+            basename = os.path.basename(param_name)
+            secret_key = basename.replace('-', '_')
+
+            print(f"Parameter {i}: name='{param_name}', basename='{basename}', secret_key='{secret_key}'")
+
+            # Get the secret value
+            secret_value = secrets.get(secret_key, f"MISSING_SECRET_{secret_key}")
+
+            tf_config["resource"]["aws_ssm_parameter"][f"param_{i}"] = {
+                "name": param_name,
+                "type": param.get('type', 'String'),
+                "value": secret_value,
+                "description": param.get('description'),
+                "tags": param.get('tags', {})
             }
-          }
-        }
 
-        provider "aws" {
-          region = "eu-west-2"
-        }
+        # Write the JSON config
+        with open('main.tf.json', 'w') as f:
+            json.dump(tf_config, f, indent=2)
 
-        locals {
-          config = yamldecode(file("${path.module}/config.yaml"))
-          variables = var.secrets
-        }
+        print("Generated main.tf.json successfully")
+        PYTHON_EOF
 
-        variable "secrets" {
-          description = "Secret key-value pairs"
-          type        = map(string)
-          default     = {}
-          sensitive   = true
-        }
-
-        resource "aws_ssm_parameter" "parameters" {
-          for_each = {
-            for idx, param in local.config.terraform.ssm_parameters :
-            idx => param
-          }
-
-          name  = each.value.name
-          type  = each.value.type
-          value = lookup(local.variables, basename(each.value.name), "")
-
-          description = try(each.value.description, null)
-
-          tags = try(each.value.tags, {})
-        }
-        EOF
+        echo "=== Generated main.tf.json ==="
+        cat main.tf.json
 
     - name: Terraform Init
       shell: bash
