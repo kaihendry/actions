@@ -20,6 +20,10 @@ inputs:
     description: "Environment name (dev, staging, prod)"
     required: false
     default: "dev"
+  region:
+    description: "AWS region"
+    required: false
+    default: "eu-west-2"
 
 runs:
   using: "composite"
@@ -28,7 +32,7 @@ runs:
       uses: aws-actions/configure-aws-credentials@v5
       with:
         role-to-assume: arn:aws:iam::407461997746:role/github-actions-Role-56IHHM969DKJ
-        aws-region: eu-west-2
+        aws-region: ${{ inputs.region }}
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -69,8 +73,35 @@ runs:
         print("Parsed secrets:", secrets)
         print("Config SSM parameters:", config.get('terraform', {}).get('ssm_parameters', []))
 
-        # Generate Terraform JSON config
-        tf_config = {
+        # Start with the terraform section from config.yaml and inject secrets
+        tf_config = config.get('terraform', {}).copy()
+
+        # Process SSM parameters and inject secret values
+        ssm_params = tf_config.get('ssm_parameters', [])
+        for i, param in enumerate(ssm_params):
+            param_name = param['name']
+            # Extract basename - keep original format to match secrets JSON
+            basename = os.path.basename(param_name)
+            secret_key = basename
+
+            print(f"Parameter {i}: name='{param_name}', basename='{basename}', secret_key='{secret_key}'")
+
+            # Get the secret value and add it to the param
+            secret_value = secrets.get(secret_key, f"MISSING_SECRET_{secret_key}")
+            param['value'] = secret_value
+
+        # Convert ssm_parameters list to terraform resource format
+        if 'ssm_parameters' in tf_config:
+            tf_config['resource'] = {
+                'aws_ssm_parameter': {
+                    f"param_{i}": param for i, param in enumerate(tf_config['ssm_parameters'])
+                }
+            }
+            # Remove the original ssm_parameters as it's now in resource format
+            del tf_config['ssm_parameters']
+
+        # Add the terraform cloud and provider configuration
+        tf_config.update({
             "terraform": {
                 "required_providers": {
                     "aws": {
@@ -87,34 +118,19 @@ runs:
             },
             "provider": {
                 "aws": {
-                    "region": "eu-west-2"
+                    "region": "${{ inputs.region }}",
+                    "default_tags": {
+                        "tags": {
+                            "Environment": "${{ inputs.environment }}",
+                            "Repository": "${{ github.event.repository.name }}",
+                            "ManagedBy": "Terraform",
+                            "Owner": "${{ github.actor }}",
+                            "Workspace": "${{ github.event.repository.name }}-${{ inputs.environment }}"
+                        }
+                    }
                 }
-            },
-            "resource": {
-                "aws_ssm_parameter": {}
             }
-        }
-
-        # Process SSM parameters
-        ssm_params = config.get('terraform', {}).get('ssm_parameters', [])
-        for i, param in enumerate(ssm_params):
-            param_name = param['name']
-            # Extract basename - keep original format to match secrets JSON
-            basename = os.path.basename(param_name)
-            secret_key = basename
-
-            print(f"Parameter {i}: name='{param_name}', basename='{basename}', secret_key='{secret_key}'")
-
-            # Get the secret value
-            secret_value = secrets.get(secret_key, f"MISSING_SECRET_{secret_key}")
-
-            tf_config["resource"]["aws_ssm_parameter"][f"param_{i}"] = {
-                "name": param_name,
-                "type": param.get('type', 'String'),
-                "value": secret_value,
-                "description": param.get('description'),
-                "tags": param.get('tags', {})
-            }
+        })
 
         # Write the JSON config
         with open('main.tf.json', 'w') as f:
