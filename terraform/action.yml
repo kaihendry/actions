@@ -99,9 +99,9 @@ runs:
         ssm_params = config.get('terraform', {}).get('ssm_parameters', [])
         for i, param in enumerate(ssm_params):
             param_name = param['name']
-            # Extract basename and convert to secret key format
+            # Extract basename - keep original format to match secrets JSON
             basename = os.path.basename(param_name)
-            secret_key = basename.replace('-', '_')
+            secret_key = basename
 
             print(f"Parameter {i}: name='{param_name}', basename='{basename}', secret_key='{secret_key}'")
 
