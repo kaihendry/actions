@@ -96,5 +96,6 @@ runs:
     - name: Plan
       shell: bash
       run: |
+        cat main.tf.json
         ls -la
         terraform apply -auto-approve -no-color
