@@ -2,10 +2,6 @@
 name: "Deploy Terraform Infrastructure"
 
 inputs:
-  config-file:
-    description: "Path to the config.yaml file"
-    required: true
-    default: "config.yaml"
   tf-api-token:
     description: "Terraform Cloud API token"
     required: true
@@ -21,6 +17,9 @@ inputs:
     description: "AWS region"
     required: false
     default: "eu-west-2"
+  environment-variables:
+    description: "Environment variables to pass to pkl evaluation"
+    required: false
 
 runs:
   using: "composite"
@@ -44,6 +43,7 @@ runs:
 
     - name: Generate Terraform configuration from pkl
       shell: bash
+      env: ${{ inputs.environment-variables }}
       run: |
         echo "=== Generating main.tf.json from config.pkl ==="
         pkl eval -f json config.pkl | jq '.terraform' > main.tf.json
