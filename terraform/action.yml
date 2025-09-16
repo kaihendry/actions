@@ -43,8 +43,17 @@ runs:
 
     - name: Generate Terraform configuration from pkl
       shell: bash
-      env: ${{ inputs.environment-variables }}
       run: |
+        # Export environment variables from input
+        if [[ -n "${{ inputs.environment-variables }}" ]]; then
+          # Parse and export variables (expects format: KEY1=value1 KEY2=value2)
+          for var in ${{ inputs.environment-variables }}; do
+            export "$var"
+            echo "Exported $var"
+          done
+        fi
+        # Show environment
+        printenv
         echo "=== Generating main.tf.json from config.pkl ==="
         pkl eval -f json config.pkl | jq '.terraform' > main.tf.json
         echo "Generated main.tf.json successfully"
