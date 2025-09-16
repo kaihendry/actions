@@ -18,6 +18,9 @@ inputs:
     required: false
     default: "eu-west-2"
 
+env:
+  TF_IN_AUTOMATION: true
+
 runs:
   using: "composite"
   steps:
@@ -47,6 +50,7 @@ runs:
         echo "=== Generating main.tf.json from config.pkl ==="
         pkl eval -f json config.pkl | jq '.terraform' > main.tf.json
         echo "Generated main.tf.json successfully"
+        cat main.tf.json
 
     - name: Terraform Init
       shell: bash
