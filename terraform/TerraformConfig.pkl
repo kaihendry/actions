@@ -1,0 +1,88 @@
+/// Schema for Terraform configuration
+module TerraformConfig
+
+schemaversion: String = "0.1"
+
+/// SSM Parameter configuration
+class SsmParameter {
+  /// Parameter name (must start with /)
+  name: String(this.startsWith("/"))
+
+  /// Description of the parameter
+  description: String?
+
+  /// https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter
+  /// Parameter type (String, StringList, or SecureString)
+  type: "String"|"StringList"|"SecureString"
+
+  value: String
+
+  /// Optional tags for the parameter
+  tags: Mapping<String, String>?
+}
+
+/// Required provider configuration
+class RequiredProvider {
+  source: String
+  version: String
+}
+
+/// Cloud configuration for Terraform Cloud
+class CloudWorkspace {
+  name: String = read("env:REPO_NAME") + "-" + read("env:TF_ENVIRONMENT")
+}
+
+class Cloud {
+  organization: String = "kaihendry"
+  workspaces: CloudWorkspace = new CloudWorkspace {}
+}
+
+/// Terraform configuration block
+class TerraformBlock {
+  required_providers: Mapping<String, RequiredProvider> = new Mapping {
+    ["aws"] = new RequiredProvider {
+      source = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+  cloud: Cloud = new Cloud {}
+}
+
+/// Resource configuration structure
+class Resource {
+  /// SSM parameters with arbitrary unique names
+  aws_ssm_parameter: Mapping<String, SsmParameter>
+}
+
+/// Default tags for AWS provider
+class DefaultTags {
+  tags: Mapping<String, String> = new Mapping {
+    // Environment is driven by workflow input (passed via TF_ENVIRONMENT)
+    ["Environment"] = read("env:TF_ENVIRONMENT")
+    ["Repository"] = read("env:REPO_NAME")
+    ["ManagedBy"] = "GitHub Actions"
+    ["Owner"] = read("env:GITHUB_ACTOR")
+    ["Workspace"] = read("env:REPO_NAME") + "-" + read("env:TF_ENVIRONMENT")
+  }
+}
+
+/// AWS provider configuration
+class AwsProvider {
+  region: String = "eu-west-2"
+  default_tags: DefaultTags = new DefaultTags {}
+}
+
+/// Provider configuration
+class Provider {
+  aws: AwsProvider = new AwsProvider {}
+}
+
+/// Complete Terraform configuration with all top-level blocks
+class TerraformConfig {
+  terraform: TerraformBlock = new TerraformBlock {}
+  provider: Provider = new Provider {}
+  resource: Resource
+}
+
+/// Root configuration that includes all Terraform blocks under terraform key
+terraform: TerraformConfig
