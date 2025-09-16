@@ -17,14 +17,11 @@ inputs:
     description: "AWS region"
     required: false
     default: "eu-west-2"
-  environment-variables:
-    description: "Environment variables to pass to pkl evaluation"
-    required: false
 
 runs:
   using: "composite"
   steps:
-      # TODO: Role lookup based on environment
+    # TODO: Role lookup based on environment
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v5
       with:
@@ -44,18 +41,6 @@ runs:
     - name: Generate Terraform configuration from pkl
       shell: bash
       run: |
-        # Export environment variables from input
-        if [[ -n "${{ inputs.environment-variables }}" ]]; then
-          # Parse and export variables (expects format: KEY1=value1 KEY2=value2)
-          echo "${{ inputs.environment-variables }}" | tr ' ' '\n' | while IFS='=' read -r key value; do
-            if [[ -n "$key" && -n "$value" ]]; then
-              export "$key=$value"
-              echo "Exported $key=$value"
-            fi
-          done
-        fi
-        # Show environment
-        printenv
         echo "=== Generating main.tf.json from config.pkl ==="
         pkl eval -f json config.pkl | jq '.terraform' > main.tf.json
         echo "Generated main.tf.json successfully"
@@ -64,9 +49,7 @@ runs:
       shell: bash
       run: terraform init
 
-    - name: Plan
+    - name: Apply
       shell: bash
       run: |
-        cat main.tf.json
-        ls -la
         terraform apply -auto-approve -no-color
