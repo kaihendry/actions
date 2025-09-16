@@ -37,57 +37,17 @@ runs:
       with:
         cli_config_credentials_token: ${{ inputs.tf-api-token }}
 
-    - name: Generate Terraform configuration
+    - name: Setup pkl
+      uses: pkl-community/setup-pkl@v0
+      with:
+        pkl-version: 0.28.2
+
+    - name: Generate Terraform configuration from pkl
       shell: bash
       run: |
-        echo "=== Generating main.tf.json from config.yaml ==="
-        python3 << 'PYTHON_EOF'
-        import yaml
-        import json
-
-        # Load config.yaml
-        with open('config.yaml', 'r') as f:
-            config = yaml.safe_load(f)
-
-        # Get terraform config from YAML and add terraform cloud and provider configuration
-        tf_config = config.get('terraform', {}).copy()
-        tf_config.update({
-            "terraform": {
-                "required_providers": {
-                    "aws": {
-                        "source": "hashicorp/aws",
-                        "version": "~> 5.0"
-                    }
-                },
-                "cloud": {
-                    "organization": "${{ inputs.tf-cloud-organization }}",
-                    "workspaces": {
-                        "name": "${{ github.event.repository.name }}-${{ inputs.environment }}"
-                    }
-                }
-            },
-            "provider": {
-                "aws": {
-                    "region": "${{ inputs.region }}",
-                    "default_tags": {
-                        "tags": {
-                            "Environment": "${{ inputs.environment }}",
-                            "Repository": "${{ github.event.repository.name }}",
-                            "ManagedBy": "Terraform",
-                            "Owner": "${{ github.actor }}",
-                            "Workspace": "${{ github.event.repository.name }}-${{ inputs.environment }}"
-                        }
-                    }
-                }
-            }
-        })
-
-        # Write the JSON config
-        with open('main.tf.json', 'w') as f:
-            json.dump(tf_config, f, indent=2)
-
-        print("Generated main.tf.json successfully")
-        PYTHON_EOF
+        echo "=== Generating main.tf.json from config.pkl ==="
+        pkl eval -f json config.pkl | jq '.terraform' > main.tf.json
+        echo "Generated main.tf.json successfully"
 
     - name: Terraform Init
       shell: bash
