@@ -47,9 +47,11 @@ runs:
         # Export environment variables from input
         if [[ -n "${{ inputs.environment-variables }}" ]]; then
           # Parse and export variables (expects format: KEY1=value1 KEY2=value2)
-          for var in ${{ inputs.environment-variables }}; do
-            export "$var"
-            echo "Exported $var"
+          echo "${{ inputs.environment-variables }}" | tr ' ' '\n' | while IFS='=' read -r key value; do
+            if [[ -n "$key" && -n "$value" ]]; then
+              export "$key=$value"
+              echo "Exported $key=$value"
+            fi
           done
         fi
         # Show environment
