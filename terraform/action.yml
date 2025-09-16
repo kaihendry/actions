@@ -40,6 +40,9 @@ runs:
 
     - name: Generate Terraform configuration from pkl
       shell: bash
+      env:
+        TF_ENVIRONMENT: ${{ inputs.environment }}
+        REPO_NAME: ${{ github.event.repository.name }}
       run: |
         echo "=== Generating main.tf.json from config.pkl ==="
         pkl eval -f json config.pkl | jq '.terraform' > main.tf.json
