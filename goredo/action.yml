@@ -4,14 +4,10 @@ description: "Downloads, builds, installs the goredo build tool using Go, and ve
 
 # Define inputs for customization (optional, but good practice)
 inputs:
-  go-version:
-    description: "Version of Go to set up for building goredo"
-    required: false
-    default: "1.21" # Default Go version
   goredo-version:
     description: "Version of goredo to download and install"
     required: false
-    default: "2.6.4" # Default goredo version
+    default: "2.6.5" # Default goredo version
 
 runs:
   # Use 'composite' to run steps directly on the runner host
@@ -20,26 +16,55 @@ runs:
     # Although the calling workflow might set up Go, it's robust
     # for the action to ensure its required Go version is present.
     - name: Set up Go ${{ inputs.go-version }}
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
-        go-version: ${{ inputs.go-version }}
+        go-version: "stable"
+        cache: true
+
+    # Cache the built goredo binary to avoid rebuilding on every run
+    - name: Cache goredo binary
+      uses: actions/cache@v4
+      id: cache-goredo
+      with:
+        path: |
+          /usr/local/bin/goredo
+          /usr/local/bin/goredo-*
+        key: goredo-binary-${{ runner.os }}-${{ inputs.goredo-version }}
 
     # Composite actions should ensure their own dependencies are met.
     - name: Install zstd dependency
+      if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash # Use bash explicitly for shell commands
       run: |
         echo "Installing zstd dependency..."
-        sudo apt-get update -qq
         sudo apt-get install -y --no-install-recommends zstd
 
-    # Use inputs for version flexibility
-    - name: Download goredo v${{ inputs.goredo-version }} source
+    # Import goredo maintainer's PGP key for signature verification
+    - name: Import goredo PGP key
+      if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        echo "Downloading goredo..."
+        echo "Importing goredo maintainer's PGP key..."
+        gpg --keyserver hkps://keys.openpgp.org --recv-keys 7531BB84FAF0BF35960C63B93A528DDE952C7E93
+
+    # Use inputs for version flexibility
+    - name: Download goredo v${{ inputs.goredo-version }} source and signature
+      if: steps.cache-goredo.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        echo "Downloading goredo tarball and signature..."
         curl -L -O "http://www.goredo.cypherpunks.su/download/goredo-${{ inputs.goredo-version }}.tar.zst"
+        curl -L -O "http://www.goredo.cypherpunks.su/download/goredo-${{ inputs.goredo-version }}.tar.zst.asc"
+
+    - name: Verify PGP signature
+      if: steps.cache-goredo.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        echo "Verifying PGP signature..."
+        gpg --verify "goredo-${{ inputs.goredo-version }}.tar.zst.asc" "goredo-${{ inputs.goredo-version }}.tar.zst"
 
     - name: Extract goredo source
+      if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Extracting goredo..."
@@ -47,6 +72,7 @@ runs:
         tar --use-compress-program unzstd -xvf "goredo-${{ inputs.goredo-version }}.tar.zst" --strip-components=1 -C ${{ runner.temp }}/goredo-src
 
     - name: Build goredo
+      if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Building goredo..."
@@ -54,6 +80,7 @@ runs:
       working-directory: ${{ runner.temp }}/goredo-src/src
 
     - name: Install goredo and create symlinks
+      if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash
       run: |
         INSTALL_DIR="/usr/local/bin"
@@ -67,3 +94,9 @@ runs:
 
         # Ensure goredo is executable and run -symlinks
         goredo -symlinks
+
+    - name: Ensure goredo is in PATH (cache hit)
+      if: steps.cache-goredo.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        echo "/usr/local/bin" >> $GITHUB_PATH
