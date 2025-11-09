@@ -95,8 +95,11 @@ runs:
         # Ensure goredo is executable and run -symlinks
         goredo -symlinks
 
-    - name: Ensure goredo is in PATH (cache hit)
-      if: steps.cache-goredo.outputs.cache-hit == 'true'
-      shell: bash
-      run: |
-        echo "/usr/local/bin" >> $GITHUB_PATH
+    - name: Ensure goredo is in PATH and recreate symlinks (cache hit)
+        if: steps.cache-goredo.outputs.cache-hit == 'true'
+        shell: bash
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+          cd /usr/local/bin
+          # Recreate symlinks since they're not cached
+          ./goredo -symlinks
