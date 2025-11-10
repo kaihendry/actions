@@ -1,0 +1,67 @@
+{
+    "mango": {
+        "dev": {
+            "account": "262432748678",
+            "description": "mango dev account",
+            "region": "us-east-1"
+        }
+    },
+    "banana": {
+        "dev": {
+            "account": "330343967603",
+            "description": "banana dev account",
+            "region": "us-east-1"
+        },
+        "prd": {
+            "account": "297713891035",
+            "description": "banana prd account",
+            "region": "eu-central-1"
+        },
+        "uat": {
+            "account": "704759168641",
+            "description": "banana uat account",
+            "region": "us-east-1"
+        },
+        "tst": {
+            "account": "496809098618",
+            "description": "banana tst account",
+            "region": "us-east-1"
+        }
+    },
+    "apple": {
+        "dev": {
+            "account": "157919619902",
+            "description": "apple dev account",
+            "region": "eu-central-1"
+        },
+        "prd": {
+            "account": "889511749906",
+            "description": "apple prd account",
+            "region": "us-east-1"
+        },
+        "uat": {
+            "account": "961329128436",
+            "description": "apple uat account",
+            "region": "eu-west-1"
+        }
+    },
+    "kiwi": {
+        "dev": {
+            "account": "691969762731",
+            "description": "kiwi dev account",
+            "region": "eu-west-1"
+        }
+    },
+    "grape": {
+        "dev": {
+            "account": "671351401250",
+            "description": "grape dev account",
+            "region": "eu-central-1"
+        },
+        "prd": {
+            "account": "478971117998",
+            "description": "grape prd account",
+            "region": "eu-central-1"
+        }
+    }
+}

@@ -1,0 +1,57 @@
+name: 'AWS Account Lookup'
+description: 'Look up AWS account information from accounts.json based on account group and environment'
+inputs:
+  aws_account_group:
+    description: 'Account group name (e.g. mango, banana, apple)'
+    required: true
+  environment:
+    description: 'Environment (e.g. dev, prd, uat, tst)'
+    required: true
+outputs:
+  aws_account:
+    description: 'AWS Account ID'
+    value: ${{ steps.lookup.outputs.aws_account }}
+  aws_region:
+    description: 'AWS Region'
+    value: ${{ steps.lookup.outputs.aws_region }}
+  description:
+    description: 'Account description'
+    value: ${{ steps.lookup.outputs.description }}
+  tf_var_aws_account:
+    description: 'TF_VAR_AWS_ACCOUNT for Terraform'
+    value: ${{ steps.lookup.outputs.aws_account }}
+  tf_var_aws_region:
+    description: 'TF_VAR_AWS_REGION for Terraform'
+    value: ${{ steps.lookup.outputs.aws_region }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Lookup AWS Account Info
+      id: lookup
+      shell: bash
+      run: |
+        ACCOUNTS_FILE="${{ github.action_path }}/../accounts.json"
+
+        if [ ! -f "$ACCOUNTS_FILE" ]; then
+          echo "Error: accounts.json not found at $ACCOUNTS_FILE"
+          exit 1
+        fi
+
+        ACCOUNT_GROUP="${{ inputs.aws_account_group }}"
+        ENVIRONMENT="${{ inputs.environment }}"
+
+        # Use jq to parse the JSON
+        ACCOUNT=$(jq -r --arg group "$ACCOUNT_GROUP" --arg env "$ENVIRONMENT" '.[$group][$env].account // empty' "$ACCOUNTS_FILE")
+        REGION=$(jq -r --arg group "$ACCOUNT_GROUP" --arg env "$ENVIRONMENT" '.[$group][$env].region // empty' "$ACCOUNTS_FILE")
+        DESCRIPTION=$(jq -r --arg group "$ACCOUNT_GROUP" --arg env "$ENVIRONMENT" '.[$group][$env].description // empty' "$ACCOUNTS_FILE")
+
+        if [ -z "$ACCOUNT" ]; then
+          echo "Error: No account found for group '$ACCOUNT_GROUP' and environment '$ENVIRONMENT'"
+          exit 1
+        fi
+
+        echo "aws_account=$ACCOUNT" >> $GITHUB_OUTPUT
+        echo "aws_region=$REGION" >> $GITHUB_OUTPUT
+        echo "description=$DESCRIPTION" >> $GITHUB_OUTPUT
+
+        echo "Found account: $ACCOUNT in region $REGION ($DESCRIPTION)"
