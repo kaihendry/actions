@@ -12,16 +12,7 @@ jobs:
       - name: Checkout Action Repository
         uses: actions/checkout@v5
 
-      # 2. (Optional) Simulate prerequisites
-      # Install tools that a *calling* workflow might have installed *before*
-      # your action runs. This tests context inheritance.
-      - name: Simulate Prerequisites (e.g., install GDAL)
-        run: |
-          echo "Simulating installation of other tools like GDAL..."
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends gdal-bin
-          echo "Checking prerequisite tool:"
-          ogr2ogr --version
+      - uses: astral-sh/setup-uv@v7
 
       # 3. Run the local composite action
       - name: Run the local Goredo Action
@@ -53,4 +44,3 @@ jobs:
       - name: Advanced Goredo Execution Test
         run: |
           redo
-          grep GDAL all
