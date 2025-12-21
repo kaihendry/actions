@@ -7,7 +7,7 @@ inputs:
   goredo-version:
     description: "Version of goredo to download and install"
     required: false
-    default: "2.6.5" # Default goredo version
+    default: "2.8.0" # Default goredo version
 
 runs:
   # Use 'composite' to run steps directly on the runner host
@@ -23,7 +23,7 @@ runs:
 
     # Cache the built goredo binary to avoid rebuilding on every run
     - name: Cache goredo binary
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache-goredo
       with:
         path: |
