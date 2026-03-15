@@ -2,26 +2,21 @@
 name: "Install Goredo"
 description: "Downloads, builds, installs the goredo build tool using Go, and verifies it."
 
-# Define inputs for customization (optional, but good practice)
 inputs:
   goredo-version:
     description: "Version of goredo to download and install"
     required: false
-    default: "2.8.0" # Default goredo version
+    default: "2.9.1"
 
 runs:
-  # Use 'composite' to run steps directly on the runner host
   using: "composite"
   steps:
-    # Although the calling workflow might set up Go, it's robust
-    # for the action to ensure its required Go version is present.
-    - name: Set up Go ${{ inputs.go-version }}
+    - name: Set up Go
       uses: actions/setup-go@v6
       with:
         go-version: "stable"
         cache: true
 
-    # Cache the built goredo binary to avoid rebuilding on every run
     - name: Cache goredo binary
       uses: actions/cache@v5
       id: cache-goredo
@@ -31,75 +26,46 @@ runs:
           /usr/local/bin/goredo-*
         key: goredo-binary-${{ runner.os }}-${{ inputs.goredo-version }}
 
-    # Composite actions should ensure their own dependencies are met.
-    - name: Install zstd dependency
+    # Install zstd only if not already present (Ubuntu 22.04+ runners include it)
+    - name: Ensure zstd is available
       if: steps.cache-goredo.outputs.cache-hit != 'true'
-      shell: bash # Use bash explicitly for shell commands
-      run: |
-        echo "Installing zstd dependency..."
-        sudo apt-get install -y --no-install-recommends zstd
+      shell: bash
+      run: command -v unzstd || sudo apt-get install -y --no-install-recommends zstd
 
     # Import goredo maintainer's PGP key for signature verification
     - name: Import goredo PGP key
       if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash
-      run: |
-        echo "Importing goredo maintainer's PGP key..."
-        gpg --keyserver hkps://keys.openpgp.org --recv-keys 7531BB84FAF0BF35960C63B93A528DDE952C7E93
+      run: gpg --keyserver hkps://keys.openpgp.org --recv-keys 7531BB84FAF0BF35960C63B93A528DDE952C7E93
 
-    # Use inputs for version flexibility
+    # Download tarball and signature in parallel from HTTPS mirror: https://goredo.dabase.com/
     - name: Download goredo v${{ inputs.goredo-version }} source and signature
       if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        echo "Downloading goredo tarball and signature..."
-        curl -L -O "http://www.goredo.cypherpunks.su/download/goredo-${{ inputs.goredo-version }}.tar.zst"
-        curl -L -O "http://www.goredo.cypherpunks.su/download/goredo-${{ inputs.goredo-version }}.tar.zst.asc"
+        BASE="https://goredo.dabase.com/download/goredo-${{ inputs.goredo-version }}.tar.zst"
+        curl -fsSL -O "$BASE" -O "$BASE.asc"
 
     - name: Verify PGP signature
       if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash
-      run: |
-        echo "Verifying PGP signature..."
-        gpg --verify "goredo-${{ inputs.goredo-version }}.tar.zst.asc" "goredo-${{ inputs.goredo-version }}.tar.zst"
+      run: gpg --verify "goredo-${{ inputs.goredo-version }}.tar.zst.asc" "goredo-${{ inputs.goredo-version }}.tar.zst"
 
-    - name: Extract goredo source
+    - name: Extract, build, and install goredo
       if: steps.cache-goredo.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        echo "Extracting goredo..."
-        mkdir -p ${{ runner.temp }}/goredo-src
-        tar --use-compress-program unzstd -xvf "goredo-${{ inputs.goredo-version }}.tar.zst" --strip-components=1 -C ${{ runner.temp }}/goredo-src
+        src="${{ runner.temp }}/goredo-src"
+        mkdir -p "$src"
+        tar --use-compress-program unzstd -xf "goredo-${{ inputs.goredo-version }}.tar.zst" --strip-components=1 -C "$src"
+        (cd "$src/src" && go build -mod=vendor)
+        sudo cp "$src/src/goredo" /usr/local/bin/
+        echo "/usr/local/bin" >> $GITHUB_PATH
+        cd /usr/local/bin && sudo ./goredo -symlinks
 
-    - name: Build goredo
-      if: steps.cache-goredo.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        echo "Building goredo..."
-        go build -mod=vendor
-      working-directory: ${{ runner.temp }}/goredo-src/src
-
-    - name: Install goredo and create symlinks
-      if: steps.cache-goredo.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        INSTALL_DIR="/usr/local/bin"
-        BUILD_DIR="${{ runner.temp }}/goredo-src/src"
-
-        cp "$BUILD_DIR/goredo" "$INSTALL_DIR/"
-
-        echo "$INSTALL_DIR" >> $GITHUB_PATH
-
-        cd "$INSTALL_DIR"
-
-        # Ensure goredo is executable and run -symlinks
-        goredo -symlinks
-
-    - name: Ensure goredo is in PATH and recreate symlinks (cache hit)
+    - name: Recreate symlinks (cache hit)
       if: steps.cache-goredo.outputs.cache-hit == 'true'
       shell: bash
       run: |
         echo "/usr/local/bin" >> $GITHUB_PATH
-        cd /usr/local/bin
-        # Recreate symlinks since they're not cached
-        ./goredo -symlinks
+        cd /usr/local/bin && sudo ./goredo -symlinks
